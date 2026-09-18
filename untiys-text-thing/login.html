@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Locked</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trispace&display=swap">
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { height: 100%; }
+    body {
+        min-height: 100vh;
+        font-family: "Trispace", sans-serif;
+        background: #000;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        position: relative;
+    }
+    body::after {
+        content: "";
+        position: fixed;
+        width: 700px;
+        height: 700px;
+        left: 50%;
+        top: 40%;
+        transform: translate(-50%, -50%);
+        background: rgba(168, 85, 247, 0.18);
+        filter: blur(120px);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 0;
+    }
+    .box {
+        position: relative;
+        z-index: 2;
+        width: 360px;
+        max-width: 100%;
+        padding: 36px 28px;
+        border-radius: 20px;
+        background: rgba(30, 20, 40, 0.75);
+        border: 1px solid rgba(168, 85, 247, 0.45);
+        box-shadow: 0 0 40px rgba(168, 85, 247, 0.3);
+        text-align: center;
+    }
+    h1 {
+        font-size: 1.25rem;
+        letter-spacing: 3px;
+        margin-bottom: 8px;
+        background: linear-gradient(135deg, #a855f7, #e9d5ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    p.hint {
+        font-size: 13px;
+        color: rgba(200, 160, 255, 0.55);
+        margin-bottom: 22px;
+    }
+    input {
+        width: 100%;
+        padding: 14px 16px;
+        font-size: 15px;
+        font-family: inherit;
+        border-radius: 12px;
+        border: 1px solid rgba(168, 85, 247, 0.45);
+        outline: none;
+        color: #fff;
+        background: rgba(20, 10, 30, 0.7);
+        margin-bottom: 14px;
+        transition: 0.25s;
+    }
+    input:focus {
+        border-color: #c084fc;
+        box-shadow: 0 0 12px rgba(168, 85, 247, 0.45);
+    }
+    button {
+        width: 100%;
+        min-height: 46px;
+        border: none;
+        border-radius: 12px;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 700;
+        font-family: inherit;
+        cursor: pointer;
+        background: linear-gradient(135deg, #7c3aed, #a855f7);
+        box-shadow: 0 4px 18px rgba(168, 85, 247, 0.4);
+        transition: 0.25s;
+    }
+    button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 28px rgba(168, 85, 247, 0.6);
+    }
+    button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+    #error {
+        margin-top: 14px;
+        font-size: 13px;
+        color: #f472b6;
+        min-height: 18px;
+    }
+</style>
+</head>
+<body>
+<div class="box">
+    <h1>LOCKED</h1>
+    <p class="hint">Enter password to unlock</p>
+    <form id="loginForm">
+        <input id="password" type="password" placeholder="Password" autocomplete="current-password" required>
+        <button type="submit" id="btn">Unlock</button>
+    </form>
+    <p id="error"></p>
+</div>
+<script>
+    const form = document.getElementById("loginForm");
+    const passwordInput = document.getElementById("password");
+    const btn = document.getElementById("btn");
+    const errorEl = document.getElementById("error");
+
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        errorEl.textContent = "";
+        btn.disabled = true;
+        btn.textContent = "Checking...";
+
+        try {
+            const res = await fetch("/api/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password: passwordInput.value }),
+            });
+
+            const data = await res.json().catch(() => ({}));
+
+            if (res.ok) {
+                window.location.href = "/";
+                return;
+            }
+
+            errorEl.textContent = data.error || "Wrong password";
+            passwordInput.value = "";
+            passwordInput.focus();
+        } catch (err) {
+            errorEl.textContent = "Network error";
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "Unlock";
+        }
+    });
+
+    passwordInput.focus();
+</script>
+</body>
+</html>

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>764 harm</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trispace&display=swap">
+<style>
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
+    html {
+        height: 100%;
+    }
+
+    body {
+        min-height: 100vh;
+        font-family: "Trispace", sans-serif;
+        background: #000;
+        color: #fff;
+        text-align: center;
+        padding: 70px 16px 50px;
+        overflow-x: hidden;
+        position: relative;
+    }
+
+    /* soft purple glow center */
+    body::after {
+        content: "";
+        position: fixed;
+        width: 700px;
+        height: 700px;
+        left: 50%;
+        top: 40%;
+        transform: translate(-50%, -50%);
+        background: rgba(168, 85, 247, 0.18);
+        filter: blur(120px);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .title {
+        position: relative;
+        z-index: 2;
+        margin-bottom: 30px;
+        font-size: 2rem;
+        font-weight: 700;
+        letter-spacing: 4px;
+        background: linear-gradient(135deg, #a855f7, #c084fc, #e9d5ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        text-shadow: 0 0 30px rgba(168, 85, 247, 0.4);
+    }
+
+    .box {
+        position: relative;
+        width: 520px;
+        max-width: 100%;
+        margin: 0 auto;
+        padding: 32px 28px;
+        border-radius: 22px;
+        z-index: 2;
+        background: rgba(30, 20, 40, 0.65);
+        backdrop-filter: blur(14px);
+        border: 1px solid rgba(168, 85, 247, 0.4);
+        box-shadow:
+            0 0 30px rgba(168, 85, 247, 0.25),
+            0 20px 50px rgba(0, 0, 0, 0.4);
+    }
+
+    input {
+        width: 100%;
+        padding: 14px 16px;
+        font-size: 15px;
+        font-family: inherit;
+        border-radius: 12px;
+        border: 1px solid rgba(168, 85, 247, 0.45);
+        outline: none;
+        color: #fff;
+        background: rgba(20, 10, 30, 0.7);
+        transition: 0.25s;
+        box-shadow: inset 0 0 15px rgba(168, 85, 247, 0.1);
+    }
+
+    input::placeholder {
+        color: rgba(200, 160, 255, 0.45);
+    }
+
+    input:focus {
+        border-color: #c084fc;
+        box-shadow:
+            0 0 12px rgba(168, 85, 247, 0.45),
+            inset 0 0 15px rgba(168, 85, 247, 0.15);
+    }
+
+    .buttons {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-top: 16px;
+    }
+
+    button {
+        min-height: 46px;
+        padding: 10px 8px;
+        border: none;
+        border-radius: 12px;
+        color: #fff;
+        font-size: 13px;
+        font-weight: 700;
+        font-family: inherit;
+        cursor: pointer;
+        transition: 0.25s;
+    }
+
+    button:hover {
+        transform: translateY(-3px) scale(1.03);
+    }
+
+    button:active {
+        transform: scale(0.97);
+    }
+
+    button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    #messageButton {
+        background: linear-gradient(135deg, #7c3aed, #a855f7);
+        box-shadow: 0 4px 18px rgba(168, 85, 247, 0.4);
+    }
+    #messageButton:hover {
+        box-shadow: 0 8px 28px rgba(168, 85, 247, 0.6);
+    }
+
+    #eventButton {
+        background: linear-gradient(135deg, #6d28d9, #c084fc);
+        box-shadow: 0 4px 18px rgba(168, 85, 247, 0.35);
+    }
+    #eventButton:hover {
+        box-shadow: 0 8px 28px rgba(192, 132, 252, 0.55);
+    }
+
+    #clearButton {
+        background: linear-gradient(135deg, #4c1d95, #7c3aed);
+        box-shadow: 0 4px 18px rgba(124, 58, 237, 0.35);
+    }
+    #clearButton:hover {
+        box-shadow: 0 8px 28px rgba(124, 58, 237, 0.55);
+    }
+
+    #status {
+        min-height: 18px;
+        margin: 14px 0 0;
+        font-size: 13px;
+        color: #c084fc;
+    }
+
+    @media (max-width: 560px) {
+        .title {
+            font-size: 1.5rem;
+            letter-spacing: 2px;
+        }
+        .buttons {
+            grid-template-columns: 1fr;
+        }
+        .box {
+            padding: 22px 16px;
+        }
+    }
+</style>
+</head>
+
+<body>
+
+<div class="title">untiys text thing</div>
+
+<div class="box">
+    <input
+        id="textInput"
+        type="text"
+        placeholder="Type a message or GameObject path..."
+        autocomplete="off"
+    >
+
+    <div class="buttons">
+        <button id="messageButton" type="button">Send Message</button>
+        <button id="eventButton" type="button">Send Event</button>
+        <button id="clearButton" type="button">Clear</button>
+    </div>
+
+    <p id="status" aria-live="polite"></p>
+</div>
+
+<script>
+    const DB_URL = "https://my-text-1c7d9-default-rtdb.firebaseio.com/text.json";
+    const EVENT_HEADER = "EVENT:";
+
+    const textInput = document.getElementById("textInput");
+    const statusText = document.getElementById("status");
+    const messageButton = document.getElementById("messageButton");
+    const eventButton = document.getElementById("eventButton");
+    const clearButton = document.getElementById("clearButton");
+
+    messageButton.addEventListener("click", sendMessage);
+    eventButton.addEventListener("click", sendEvent);
+    clearButton.addEventListener("click", clearEverything);
+
+    async function sendMessage() {
+        const message = textInput.value.replace(/\\n/g, "\n");
+
+        if (message.trim().length === 0) {
+            statusText.innerText = "Enter a message first.";
+            return;
+        }
+
+        const ok = await sendValue(message, "Message sent!");
+        if (ok) textInput.value = "";
+    }
+
+    async function sendEvent() {
+        const gameObjectPath = textInput.value.trim();
+
+        if (gameObjectPath.length === 0) {
+            statusText.innerText = "Enter a GameObject path first.";
+            return;
+        }
+
+        const ok = await sendValue(EVENT_HEADER + gameObjectPath, "Event sent \u2714");
+        if (ok) textInput.value = "";
+    }
+
+    async function clearEverything() {
+        textInput.value = "";
+        await sendValue("", "Cleared \u2714");
+    }
+
+    async function sendValue(value, successMessage) {
+        setButtonsDisabled(true);
+        statusText.innerText = "Sending...";
+
+        try {
+            const response = await fetch(DB_URL, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(value)
+            });
+
+            if (!response.ok) {
+                throw new Error("HTTP " + response.status);
+            }
+
+            statusText.innerText = successMessage;
+            return true;
+        }
+        catch (error) {
+            statusText.innerText = "Error \u274c";
+            console.error("Could not update the live value:", error);
+            return false;
+        }
+        finally {
+            setButtonsDisabled(false);
+        }
+    }
+
+    function setButtonsDisabled(disabled) {
+        messageButton.disabled = disabled;
+        eventButton.disabled = disabled;
+        clearButton.disabled = disabled;
+    }
+
+    textInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            sendMessage();
+        }
+    });
+</script>
+
+</body>
+</html>
