@@ -4,11 +4,15 @@ module.exports = async function handler(req, res) {
   }
 
   const webhook = process.env.DISCORD_WEBHOOK_URL;
+
   if (!webhook) {
-    return res.status(500).json({ error: "DISCORD_WEBHOOK_URL not set" });
+    return res.status(500).json({
+      error: "DISCORD_WEBHOOK_URL not set"
+    });
   }
 
   let body = req.body;
+
   if (typeof body === "string") {
     try {
       body = JSON.parse(body);
@@ -19,34 +23,80 @@ module.exports = async function handler(req, res) {
 
   const type = body.type || "unknown";
   const value = body.value || "";
-  const ip = req.headers["x-forwarded-for"] || req.headers["x-real-ip"] || "unknown";
 
-  let content = "";
+  const ip =
+    req.headers["x-forwarded-for"] ||
+    req.headers["x-real-ip"] ||
+    "unknown";
+
+  let title = "";
+  let description = "";
 
   if (type === "message") {
-    content = `💬 **Message sent**\n\`\`\`\n${value}\n\`\`\`\nIP: \`${ip}\``;
+    title = "Message Sent";
+    description = `\`\`\`\n${value}\n\`\`\``;
   } else if (type === "event") {
-    content = `⚡ **Event sent**\nPath: \`${value}\`\nIP: \`${ip}\``;
+    title = "Event Sent";
+    description = `**Path:** \`${value}\``;
   } else if (type === "clear") {
-    content = `🧹 **Cleared**\nIP: \`${ip}\``;
+    title = "Cleared";
+    description = "The data was cleared.";
   } else {
-    content = `📝 **${type}**\n\`\`\`\n${value}\n\`\`\`\nIP: \`${ip}\``;
+    title = type;
+    description = `\`\`\`\n${value}\n\`\`\``;
   }
+
+  const embed = {
+    title: title,
+    description: description,
+    fields: [
+      {
+        name: "IP",
+        value: `\`${ip}\``,
+        inline: true
+      },
+      {
+        name: "Type",
+        value: `\`${type}\``,
+        inline: true
+      }
+    ],
+    timestamp: new Date().toISOString(),
+    footer: {
+      text: "milk tag global message logger",
+    }
+  };
 
   try {
     const r = await fetch(webhook, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content }),
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        embeds: [embed]
+      })
     });
 
     if (!r.ok) {
-      return res.status(502).json({ error: "Discord webhook failed" });
+      const errorText = await r.text();
+
+      console.error("Discord webhook error:", errorText);
+
+      return res.status(502).json({
+        error: "Discord webhook failed"
+      });
     }
 
-    return res.status(200).json({ ok: true });
+    return res.status(200).json({
+      ok: true
+    });
+
   } catch (e) {
     console.error("discord error:", e);
-    return res.status(500).json({ error: "Failed to send" });
+
+    return res.status(500).json({
+      error: "Failed to send"
+    });
   }
 };
