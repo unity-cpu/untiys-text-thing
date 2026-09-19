@@ -1,5 +1,6 @@
+
 export const config = {
-  matcher: ["/((?!api/login|_next|favicon.ico).*)"],
+  matcher: ["/((?!api/login|api/notify|_next|favicon.ico).*)"],
 };
 
 function toBase64Url(str) {

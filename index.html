@@ -213,6 +213,19 @@
     eventButton.addEventListener("click", sendEvent);
     clearButton.addEventListener("click", clearEverything);
 
+    async function notifyDiscord(type, value) {
+        try {
+            await fetch("/api/notify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ type, value }),
+            });
+        } catch (e) {
+            // silent fail, dont break the main flow
+            console.warn("discord notify failed", e);
+        }
+    }
+
     async function sendMessage() {
         const message = textInput.value.replace(/\\n/g, "\n");
 
@@ -222,7 +235,10 @@
         }
 
         const ok = await sendValue(message, "Message sent!");
-        if (ok) textInput.value = "";
+        if (ok) {
+            textInput.value = "";
+            notifyDiscord("message", message);
+        }
     }
 
     async function sendEvent() {
@@ -234,12 +250,16 @@
         }
 
         const ok = await sendValue(EVENT_HEADER + path, "Event sent ✓");
-        if (ok) textInput.value = "";
+        if (ok) {
+            textInput.value = "";
+            notifyDiscord("event", path);
+        }
     }
 
     async function clearEverything() {
         textInput.value = "";
-        await sendValue("", "Cleared ✓");
+        const ok = await sendValue("", "Cleared ✓");
+        if (ok) notifyDiscord("clear", "");
     }
 
     async function sendValue(value, successMessage) {
