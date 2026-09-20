@@ -21,7 +21,7 @@ async function sendDiscord(content) {
 }
 
 async function isVpnOrProxy(ip) {
-  // Skip local/private/unknown IPs
+  // Skip local / private / unknown IPs — they can never be VPNs
   if (
     !ip ||
     ip === "unknown" ||
@@ -35,7 +35,12 @@ async function isVpnOrProxy(ip) {
   }
 
   try {
-    const res = await fetch(`https://api.ipapi.is/?q=${encodeURIComponent(ip)}`);
+    // proxycheck.io — works without an API key (100 queries/day free)
+    // Add &key=YOUR_KEY to raise the limit to 1,000/day
+    const res = await fetch(
+      `https://proxycheck.io/v2/${encodeURIComponent(ip)}?vpn=1&asn=1`
+    );
+
     if (!res.ok) {
       console.error(`VPN detection API error: ${res.status}`);
       return false; // fail open so the site still works if the API is down
@@ -43,12 +48,16 @@ async function isVpnOrProxy(ip) {
 
     const data = await res.json();
 
-    // ipapi.is returns booleans: is_vpn, is_proxy, is_tor, is_datacenter, etc.
-    return (
-      data.is_vpn === true ||
-      data.is_proxy === true ||
-      data.is_tor === true
-    );
+    // proxycheck returns { status: "ok", "<ip>": { detections: { proxy, vpn, tor, ... } } }
+    const entry = data[ip];
+    if (!entry || !entry.detections) {
+      console.error("Unexpected proxycheck response:", JSON.stringify(data));
+      return false;
+    }
+
+    const d = entry.detections;
+    return d.proxy === true || d.vpn === true || d.tor === true;
+
   } catch (e) {
     console.error("VPN detection fetch failed:", e);
     return false; // fail open
