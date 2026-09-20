@@ -38,12 +38,10 @@ async function isVpnOrProxy(ip) {
   try {
     const res = await fetch(url);
     if (!res.ok) return { blocked: false, reason: "api_error" };
-
     const data = await res.json();
     if (!data || data.status !== "success") {
       return { blocked: false, reason: "bad_response" };
     }
-
     if (data.proxy === true || data.hosting === true) {
       return {
         blocked: true,
@@ -85,23 +83,22 @@ module.exports = async function handler(req, res) {
     req.headers["x-real-ip"] ||
     "unknown";
 
-  // --- VPN check ---
+  // --- 1) VPN check ---
   const check = await isVpnOrProxy(ip);
   if (check.blocked) {
     await sendDiscord(
       `**Login blocked (${check.reason})**\n` +
-        `IP: \`${ip}\`\n` +
-        `ISP: \`${check.isp || "?"}\`\n` +
-        `AS: \`${check.as || "?"}\``
+        `IP: \`${ip}\`\nISP: \`${check.isp || "?"}\`\nAS: \`${check.as || "?"}\``
     );
     return res.status(403).json({
       error:
-        "VPN, proxy, or hosting connections are not allowed. Please disconnect your VPN and try again.",
+        "VPN, proxy, or hosting connections are not allowed. " +
+        "Please disconnect your VPN and try again.",
       vpn: true,
     });
   }
 
-  // --- Password check ---
+  // --- 2) Password check ---
   if (provided !== expected) {
     await sendDiscord(`**Login failed**\nIP: \`${ip}\``);
     return res.status(401).json({ error: "Wrong password" });
@@ -109,8 +106,7 @@ module.exports = async function handler(req, res) {
 
   const token = toBase64Url("ok:" + expected);
 
-  // Set both the auth cookie AND the vpn_ok cookie so middleware doesn't
-  // re-query the API for every page load.
+  // Set both cookies: auth + vpn_ok (30 min) so middleware skips the API check.
   res.setHeader("Set-Cookie", [
     "site_auth=" +
       token +

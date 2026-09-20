@@ -122,6 +122,19 @@
     const btn = document.getElementById("btn");
     const errorEl = document.getElementById("error");
 
+    // Replaces the whole login box with a "disconnect your VPN" screen.
+    function showVpnBlock(message) {
+        document.body.innerHTML = `
+          <div class="box" style="width:420px;">
+            <div style="font-size:44px;margin-bottom:6px;">🛡️</div>
+            <h1 style="margin-bottom:14px;">VPN DETECTED</h1>
+            <p style="font-size:14px;line-height:1.6;color:rgba(200,160,255,0.7);margin-bottom:22px;">
+              ${message || "Disconnect your VPN, proxy, or hosting connection and reload to continue."}
+            </p>
+            <button type="button" onclick="location.reload()">I Disconnected — Reload</button>
+          </div>`;
+    }
+
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
         errorEl.textContent = "";
@@ -139,6 +152,12 @@
 
             if (res.ok) {
                 window.location.href = "/";
+                return;
+            }
+
+            // VPN / proxy detected — lock the page.
+            if (data.vpn === true || res.status === 403) {
+                showVpnBlock(data.error);
                 return;
             }
 
