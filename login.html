@@ -108,7 +108,7 @@
 </style>
 </head>
 <body>
-<div class="box">
+<div class="box" id="box">
     <h1>LOCKED</h1>
     <form id="loginForm">
         <input id="password" type="password" placeholder="Password" autocomplete="current-password" required>
@@ -122,7 +122,7 @@
     const btn = document.getElementById("btn");
     const errorEl = document.getElementById("error");
 
-    // Replaces the whole login box with a "disconnect your VPN" screen.
+    // Replace the login box with a "disconnect your VPN" screen.
     function showVpnBlock(message) {
         document.body.innerHTML = `
           <div class="box" style="width:420px;">
@@ -135,6 +135,21 @@
           </div>`;
     }
 
+    // ---- 1) Check VPN immediately on page load ----
+    (async () => {
+        try {
+            const res = await fetch("/api/checkvpn", { cache: "no-store" });
+            const data = await res.json().catch(() => ({}));
+            if (data.vpn === true) {
+                showVpnBlock();
+            }
+        } catch (e) {
+            // network issue — let them try the form anyway
+            console.warn("on-load VPN check failed:", e);
+        }
+    })();
+
+    // ---- 2) Check again on submit (belt and suspenders) ----
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
         errorEl.textContent = "";
@@ -155,7 +170,7 @@
                 return;
             }
 
-            // VPN / proxy detected — lock the page.
+            // VPN / proxy detected by the login endpoint
             if (data.vpn === true || res.status === 403) {
                 showVpnBlock(data.error);
                 return;
