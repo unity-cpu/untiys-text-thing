@@ -1,4 +1,4 @@
-// api/login.js (or wherever your handler lives)
+// api/login.js
 
 function toBase64Url(str) {
   const b64 = Buffer.from(str, "utf8").toString("base64");
@@ -8,7 +8,6 @@ function toBase64Url(str) {
 async function sendDiscord(content) {
   const webhook = process.env.DISCORD_WEBHOOK_URL;
   if (!webhook) return;
-
   try {
     await fetch(webhook, {
       method: "POST",
@@ -21,7 +20,6 @@ async function sendDiscord(content) {
 }
 
 async function isVpnOrProxy(ip) {
-  // Skip local / private / unknown IPs — they can never be VPNs
   if (
     !ip ||
     ip === "unknown" ||
@@ -31,36 +29,34 @@ async function isVpnOrProxy(ip) {
     ip.startsWith("192.168.") ||
     /^172\.(1[6-9]|2\d|3[0-1])\./.test(ip)
   ) {
-    return false;
+    return { blocked: false, reason: "local" };
   }
 
-  try {
-    // proxycheck.io — works without an API key (100 queries/day free)
-    // Add &key=YOUR_KEY to raise the limit to 1,000/day
-    const res = await fetch(
-      `https://proxycheck.io/v2/${encodeURIComponent(ip)}?vpn=1&asn=1`
-    );
+  const fields = "status,message,proxy,hosting,isp,org,as,query";
+  const url = `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=${fields}`;
 
-    if (!res.ok) {
-      console.error(`VPN detection API error: ${res.status}`);
-      return false; // fail open so the site still works if the API is down
-    }
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return { blocked: false, reason: "api_error" };
 
     const data = await res.json();
-
-    // proxycheck returns { status: "ok", "<ip>": { detections: { proxy, vpn, tor, ... } } }
-    const entry = data[ip];
-    if (!entry || !entry.detections) {
-      console.error("Unexpected proxycheck response:", JSON.stringify(data));
-      return false;
+    if (!data || data.status !== "success") {
+      return { blocked: false, reason: "bad_response" };
     }
 
-    const d = entry.detections;
-    return d.proxy === true || d.vpn === true || d.tor === true;
-
+    if (data.proxy === true || data.hosting === true) {
+      return {
+        blocked: true,
+        reason: data.proxy ? "vpn/proxy/tor" : "datacenter/hosting",
+        isp: data.isp,
+        org: data.org,
+        as: data.as,
+      };
+    }
+    return { blocked: false, reason: "clean" };
   } catch (e) {
-    console.error("VPN detection fetch failed:", e);
-    return false; // fail open
+    console.error("ip-api fetch failed:", e);
+    return { blocked: false, reason: "fetch_failed" };
   }
 }
 
@@ -70,7 +66,6 @@ module.exports = async function handler(req, res) {
   }
 
   const expected = process.env.SITE_PASSWORD;
-
   if (!expected) {
     return res.status(500).json({
       error: "SITE_PASSWORD is not set in Vercel Environment Variables",
@@ -79,29 +74,30 @@ module.exports = async function handler(req, res) {
 
   let body = req.body;
   if (typeof body === "string") {
-    try {
-      body = JSON.parse(body);
-    } catch {
-      body = {};
-    }
+    try { body = JSON.parse(body); } catch { body = {}; }
   }
 
   const provided = (body && body.password) || "";
 
-  // Extract the real client IP (first entry in x-forwarded-for)
   const forwarded = req.headers["x-forwarded-for"];
   const ip =
     (typeof forwarded === "string" ? forwarded.split(",")[0].trim() : "") ||
     req.headers["x-real-ip"] ||
     "unknown";
 
-  // --- VPN / Proxy / Tor check ---
-  const blocked = await isVpnOrProxy(ip);
-  if (blocked) {
-    await sendDiscord(`**Login blocked (VPN/Proxy/Tor detected)**\nIP: \`${ip}\``);
+  // --- VPN check ---
+  const check = await isVpnOrProxy(ip);
+  if (check.blocked) {
+    await sendDiscord(
+      `**Login blocked (${check.reason})**\n` +
+        `IP: \`${ip}\`\n` +
+        `ISP: \`${check.isp || "?"}\`\n` +
+        `AS: \`${check.as || "?"}\``
+    );
     return res.status(403).json({
       error:
-        "VPN, proxy, or Tor connections are not allowed. Please disable it and try again.",
+        "VPN, proxy, or hosting connections are not allowed. Please disconnect your VPN and try again.",
+      vpn: true,
     });
   }
 
@@ -113,12 +109,14 @@ module.exports = async function handler(req, res) {
 
   const token = toBase64Url("ok:" + expected);
 
-  res.setHeader(
-    "Set-Cookie",
+  // Set both the auth cookie AND the vpn_ok cookie so middleware doesn't
+  // re-query the API for every page load.
+  res.setHeader("Set-Cookie", [
     "site_auth=" +
       token +
-      "; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=86400"
-  );
+      "; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=86400",
+    "vpn_ok=1; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=1800",
+  ]);
 
   await sendDiscord(`**Login success**\nIP: \`${ip}\``);
 
