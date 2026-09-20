@@ -1,21 +1,44 @@
 // api/login.js
+const crypto = require("crypto");
 
-function toBase64Url(str) {
-  const b64 = Buffer.from(str, "utf8").toString("base64");
-  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+function getClientIp(req) {
+  const forwarded = req.headers["x-forwarded-for"];
+  return (
+    (typeof forwarded === "string" ? forwarded.split(",")[0].trim() : "") ||
+    req.headers["x-real-ip"] ||
+    "unknown"
+  );
+}
+
+function safeEqual(a, b) {
+  const left = Buffer.from(String(a));
+  const right = Buffer.from(String(b));
+  if (left.length !== right.length) return false;
+  return crypto.timingSafeEqual(left, right);
+}
+
+function createSession(secret, maxAgeSeconds = 86400) {
+  const expires = Math.floor(Date.now() / 1000) + maxAgeSeconds;
+  const signature = crypto
+    .createHmac("sha256", secret)
+    .update(String(expires))
+    .digest("base64url");
+
+  return `${expires}.${signature}`;
 }
 
 async function sendDiscord(content) {
   const webhook = process.env.DISCORD_WEBHOOK_URL;
   if (!webhook) return;
+
   try {
     await fetch(webhook, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content }),
     });
-  } catch (e) {
-    console.error("discord webhook failed:", e);
+  } catch (error) {
+    console.error("discord webhook failed:", error);
   }
 }
 
@@ -36,12 +59,14 @@ async function isVpnOrProxy(ip) {
   const url = `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=${fields}`;
 
   try {
-    const res = await fetch(url);
-    if (!res.ok) return { blocked: false, reason: "api_error" };
-    const data = await res.json();
+    const response = await fetch(url);
+    if (!response.ok) return { blocked: false, reason: "api_error" };
+
+    const data = await response.json();
     if (!data || data.status !== "success") {
       return { blocked: false, reason: "bad_response" };
     }
+
     if (data.proxy === true || data.hosting === true) {
       return {
         blocked: true,
@@ -51,9 +76,10 @@ async function isVpnOrProxy(ip) {
         as: data.as,
       };
     }
+
     return { blocked: false, reason: "clean" };
-  } catch (e) {
-    console.error("ip-api fetch failed:", e);
+  } catch (error) {
+    console.error("ip-api fetch failed:", error);
     return { blocked: false, reason: "fetch_failed" };
   }
 }
@@ -64,54 +90,48 @@ module.exports = async function handler(req, res) {
   }
 
   const expected = process.env.SITE_PASSWORD;
-  if (!expected) {
+  const authSecret = process.env.SITE_AUTH_SECRET;
+
+  if (!expected || !authSecret) {
     return res.status(500).json({
-      error: "SITE_PASSWORD is not set in Vercel Environment Variables",
+      error: "SITE_PASSWORD and SITE_AUTH_SECRET must be set in Vercel Environment Variables.",
     });
   }
 
   let body = req.body;
   if (typeof body === "string") {
-    try { body = JSON.parse(body); } catch { body = {}; }
+    try {
+      body = JSON.parse(body);
+    } catch {
+      body = {};
+    }
   }
 
-  const provided = (body && body.password) || "";
+  const provided = typeof body?.password === "string" ? body.password : "";
+  const ip = getClientIp(req);
 
-  const forwarded = req.headers["x-forwarded-for"];
-  const ip =
-    (typeof forwarded === "string" ? forwarded.split(",")[0].trim() : "") ||
-    req.headers["x-real-ip"] ||
-    "unknown";
-
-  // --- 1) VPN check ---
   const check = await isVpnOrProxy(ip);
   if (check.blocked) {
     await sendDiscord(
-      `**Login blocked (${check.reason})**\n` +
-        `IP: \`${ip}\`\nISP: \`${check.isp || "?"}\`\nAS: \`${check.as || "?"}\``
+      `**Login blocked (${check.reason})**\nIP: \`${ip}\`\nISP: \`${check.isp || "?"}\`\nAS: \`${check.as || "?"}\``
     );
+
     return res.status(403).json({
-      error:
-        "VPN, proxy, or hosting connections are not allowed. " +
-        "Please disconnect your VPN and try again.",
+      error: "VPN, proxy, or hosting connections are not allowed. Please disconnect your VPN and try again.",
       vpn: true,
     });
   }
 
-  // --- 2) Password check ---
-  if (provided !== expected) {
+  if (!safeEqual(provided, expected)) {
     await sendDiscord(`**Login failed**\nIP: \`${ip}\``);
     return res.status(401).json({ error: "Wrong password" });
   }
 
-  const token = toBase64Url("ok:" + expected);
+  const token = createSession(authSecret);
 
-  // Set both cookies: auth + vpn_ok (30 min) so middleware skips the API check.
   res.setHeader("Set-Cookie", [
-    "site_auth=" +
-      token +
-      "; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=86400",
-    "vpn_ok=1; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=1800",
+    `site_auth=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=86400`,
+    `vpn_ok=1; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=1800`,
   ]);
 
   await sendDiscord(`**Login success**\nIP: \`${ip}\``);

@@ -1,44 +1,19 @@
-# untiys text thing
+# Unity Text Thing
 
-Password-protected site. Password lives **only** in Vercel env vars.
+## Vercel environment variables
 
-## How it works
+Set these in Vercel -> Project -> Settings -> Environment Variables:
 
-1. Visit any page → redirected to `/login.html`
-2. Enter password → checked by `/api/login` against `SITE_PASSWORD`
-3. On success a secure cookie is set → you can use the app
-4. Cookie lasts 24 hours
+- `SITE_PASSWORD` = the password visitors must enter
+- `SITE_AUTH_SECRET` = a long random secret used to sign login sessions
+- `DISCORD_WEBHOOK_URL` = your Discord webhook URL (optional; only needed for login/action notifications)
 
-## Setup (do all steps)
+After changing environment variables, redeploy the project.
 
-### 1. Deploy the whole folder
-Must include:
-- `index.html` (the app)
-- `login.html` (password form)
-- `middleware.js` (redirects if not logged in)
-- `api/login.js` (checks password)
-- `vercel.json`
-- `package.json`
+## Login flow
 
-```bash
-cd untiys-text-thing
-npx vercel
-```
-
-### 2. Add environment variable
-Vercel dashboard → your project → **Settings → Environment Variables**
-
-| Name            | Value            | Environments                    |
-|-----------------|------------------|---------------------------------|
-| `SITE_PASSWORD` | your-real-pass   | Production, Preview, Development |
-
-### 3. Redeploy
-Deployments → ⋯ → **Redeploy**
-
-Env vars only apply after a new deploy.
-
-### 4. Test
-Open the site (preferably Incognito). You should land on the purple **LOCKED** page and must enter the password.
-
-## Change password later
-Edit `SITE_PASSWORD` in Vercel → Redeploy. No code changes.
+1. `/` is protected by `middleware.js`.
+2. Users without a valid `site_auth` cookie are redirected to `/login.html`.
+3. `/api/login` checks the password and VPN/proxy status, then creates a signed 24-hour HttpOnly session cookie.
+4. `/api/notify` requires a valid session, so it cannot be called anonymously.
+5. `/api/logout` clears the session.
