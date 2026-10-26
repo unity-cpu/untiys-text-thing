@@ -227,7 +227,7 @@
     <h2>Send</h2>
     <label for="targetSelect">Text target</label>
     <select id="targetSelect">
-        <option value="">Default (main uiText)</option>
+        <option value="">Default</option>
     </select>
 
     <label for="textInput">Message or GameObject path</label>
@@ -246,9 +246,6 @@
 
     <p id="status" aria-live="polite"></p>
     <p class="hint">
-        Message → types + speaks on the chosen target.<br>
-        Event → turns GameObjects on (use +path / -path for add/remove).<br>
-        Clear → clears text and turns all tracked objects off.
     </p>
 </div>
 
@@ -257,7 +254,7 @@
     <div class="active-list" id="activeList">
         <div class="empty-state">Nothing active yet…</div>
     </div>
-    <p class="hint">Unity reports what's on. Click Off to send EVENT:-path.</p>
+    <p class="hint">Click Off to send</p>
 </div>
 
 <script>
