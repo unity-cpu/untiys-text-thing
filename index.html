@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unity Text Thing</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trispace&display=swap">
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { height: 100%; }
+    body {
+        min-height: 100vh;
+        font-family: "Trispace", sans-serif;
+        background: #000;
+        color: #fff;
+        text-align: center;
+        padding: 70px 16px 50px;
+        overflow-x: hidden;
+        position: relative;
+    }
+    body::after {
+        content: "";
+        position: fixed;
+        width: 700px;
+        height: 700px;
+        left: 50%;
+        top: 40%;
+        transform: translate(-50%, -50%);
+        background: rgba(168, 85, 247, 0.18);
+        filter: blur(120px);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 0;
+    }
+    .title {
+        position: relative;
+        z-index: 2;
+        margin-bottom: 30px;
+        font-size: 2rem;
+        font-weight: 700;
+        letter-spacing: 4px;
+        background: linear-gradient(135deg, #a855f7, #c084fc, #e9d5ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        text-shadow: 0 0 30px rgba(168, 85, 247, 0.4);
+    }
+    .box {
+        position: relative;
+        width: 560px;
+        max-width: 100%;
+        margin: 0 auto 18px;
+        padding: 28px 24px;
+        border-radius: 22px;
+        z-index: 2;
+        background: rgba(30, 20, 40, 0.65);
+        backdrop-filter: blur(14px);
+        border: 1px solid rgba(168, 85, 247, 0.4);
+        box-shadow:
+            0 0 30px rgba(168, 85, 247, 0.25),
+            0 20px 50px rgba(0, 0, 0, 0.4);
+        text-align: left;
+    }
+    .box h2 {
+        font-size: 13px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: rgba(200, 160, 255, 0.7);
+        margin-bottom: 14px;
+        text-align: center;
+    }
+    label {
+        display: block;
+        font-size: 12px;
+        color: rgba(200, 160, 255, 0.55);
+        margin-bottom: 6px;
+    }
+    input, select {
+        width: 100%;
+        padding: 14px 16px;
+        font-size: 15px;
+        font-family: inherit;
+        border-radius: 12px;
+        border: 1px solid rgba(168, 85, 247, 0.45);
+        outline: none;
+        color: #fff;
+        background: rgba(20, 10, 30, 0.7);
+        transition: 0.25s;
+        box-shadow: inset 0 0 15px rgba(168, 85, 247, 0.1);
+        margin-bottom: 12px;
+    }
+    input::placeholder { color: rgba(200, 160, 255, 0.45); }
+    input:focus, select:focus {
+        border-color: #c084fc;
+        box-shadow:
+            0 0 12px rgba(168, 85, 247, 0.45),
+            inset 0 0 15px rgba(168, 85, 247, 0.15);
+    }
+    select option { background: #1a1025; color: #fff; }
+    .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+    .buttons {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-top: 4px;
+    }
+    button {
+        min-height: 46px;
+        padding: 10px 8px;
+        border: none;
+        border-radius: 12px;
+        color: #fff;
+        font-size: 13px;
+        font-weight: 700;
+        font-family: inherit;
+        cursor: pointer;
+        transition: 0.25s;
+    }
+    button:hover { transform: translateY(-3px) scale(1.03); }
+    button:active { transform: scale(0.97); }
+    button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        transform: none;
+    }
+    #messageButton {
+        background: linear-gradient(135deg, #7c3aed, #a855f7);
+        box-shadow: 0 4px 18px rgba(168, 85, 247, 0.4);
+    }
+    #messageButton:hover { box-shadow: 0 8px 28px rgba(168, 85, 247, 0.6); }
+    #eventButton {
+        background: linear-gradient(135deg, #6d28d9, #c084fc);
+        box-shadow: 0 4px 18px rgba(168, 85, 247, 0.35);
+    }
+    #eventButton:hover { box-shadow: 0 8px 28px rgba(192, 132, 252, 0.55); }
+    #clearButton {
+        background: linear-gradient(135deg, #4c1d95, #7c3aed);
+        box-shadow: 0 4px 18px rgba(124, 58, 237, 0.35);
+    }
+    #clearButton:hover { box-shadow: 0 8px 28px rgba(124, 58, 237, 0.55); }
+    #status {
+        min-height: 18px;
+        margin: 14px 0 0;
+        font-size: 13px;
+        color: #c084fc;
+        text-align: center;
+    }
+    .active-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 280px;
+        overflow-y: auto;
+    }
+    .active-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: rgba(20, 10, 30, 0.7);
+        border: 1px solid rgba(168, 85, 247, 0.35);
+    }
+    .active-item .name {
+        font-size: 13px;
+        word-break: break-all;
+        color: #e9d5ff;
+        text-align: left;
+    }
+    .active-item .off-btn {
+        flex-shrink: 0;
+        min-height: 34px;
+        padding: 6px 12px;
+        font-size: 12px;
+        background: linear-gradient(135deg, #9f1239, #e11d48);
+        box-shadow: 0 2px 10px rgba(225, 29, 72, 0.35);
+    }
+    .active-item .off-btn:hover {
+        box-shadow: 0 4px 16px rgba(225, 29, 72, 0.55);
+    }
+    .empty-state {
+        text-align: center;
+        font-size: 13px;
+        color: rgba(200, 160, 255, 0.45);
+        padding: 18px 8px;
+    }
+    .hint {
+        font-size: 11px;
+        color: rgba(200, 160, 255, 0.4);
+        margin-top: 10px;
+        line-height: 1.5;
+        text-align: center;
+    }
+    .logout {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        z-index: 5;
+        min-height: 36px;
+        padding: 8px 14px;
+        font-size: 12px;
+        background: rgba(30, 20, 40, 0.85);
+        border: 1px solid rgba(168, 85, 247, 0.4);
+        border-radius: 10px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+    }
+    .logout:hover { transform: translateY(-2px); }
+    @media (max-width: 560px) {
+        .title { font-size: 1.5rem; letter-spacing: 2px; }
+        .buttons, .row { grid-template-columns: 1fr; }
+        .box { padding: 22px 16px; }
+    }
+</style>
+</head>
+<body>
+
+<button class="logout" id="logoutButton" type="button">Logout</button>
+
+<div class="title">unity text thing</div>
+
+<div class="box">
+    <h2>Send</h2>
+    <label for="targetSelect">Text target</label>
+    <select id="targetSelect">
+        <option value="">Default (main uiText)</option>
+    </select>
+
+    <label for="textInput">Message or GameObject path</label>
+    <input
+        id="textInput"
+        type="text"
+        placeholder="Type a message or GameObject path..."
+        autocomplete="off"
+    >
+
+    <div class="buttons">
+        <button id="messageButton" type="button">Send Message</button>
+        <button id="eventButton" type="button">Send Event</button>
+        <button id="clearButton" type="button">Clear</button>
+    </div>
+
+    <p id="status" aria-live="polite"></p>
+    <p class="hint">
+        Message → types + speaks on the chosen target.<br>
+        Event → turns GameObjects on (use +path / -path for add/remove).<br>
+        Clear → clears text and turns all tracked objects off.
+    </p>
+</div>
+
+<div class="box">
+    <h2>Active objects</h2>
+    <div class="active-list" id="activeList">
+        <div class="empty-state">Nothing active yet…</div>
+    </div>
+    <p class="hint">Unity reports what's on. Click Off to send EVENT:-path.</p>
+</div>
+
+<script>
+    const DB_URL = "https://my-text-1c7d9-default-rtdb.firebaseio.com/text.json";
+    const ACTIVE_URL = "https://my-text-1c7d9-default-rtdb.firebaseio.com/active.json";
+    const TARGETS_URL = "https://my-text-1c7d9-default-rtdb.firebaseio.com/targets.json";
+    const EVENT_HEADER = "EVENT:";
+    const TEXT_HEADER = "TEXT:";
+
+    const textInput = document.getElementById("textInput");
+    const targetSelect = document.getElementById("targetSelect");
+    const statusText = document.getElementById("status");
+    const messageButton = document.getElementById("messageButton");
+    const eventButton = document.getElementById("eventButton");
+    const clearButton = document.getElementById("clearButton");
+    const activeList = document.getElementById("activeList");
+
+    messageButton.addEventListener("click", sendMessage);
+    eventButton.addEventListener("click", sendEvent);
+    clearButton.addEventListener("click", clearEverything);
+
+    document.getElementById("logoutButton").addEventListener("click", async () => {
+        try {
+            await fetch("/api/logout", { method: "POST" });
+        } finally {
+            window.location.href = "/login.html";
+        }
+    });
+
+    async function notifyDiscord(type, value) {
+        try {
+            await fetch("/api/notify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ type, value }),
+            });
+        } catch (e) {
+            console.warn("discord notify failed", e);
+        }
+    }
+
+    async function sendMessage() {
+        const message = textInput.value.replace(/\\n/g, "\n");
+        if (message.trim().length === 0) {
+            statusText.innerText = "Enter a message first.";
+            return;
+        }
+
+        const target = targetSelect.value.trim();
+        const payload = target
+            ? TEXT_HEADER + target + "|" + message
+            : message;
+
+        const ok = await sendValue(payload, target ? "Text sent to " + target : "Message sent!");
+        if (ok) {
+            textInput.value = "";
+            notifyDiscord("message", payload);
+        }
+    }
+
+    async function sendEvent() {
+        const path = textInput.value.trim();
+        if (path.length === 0) {
+            statusText.innerText = "Enter a GameObject path first.";
+            return;
+        }
+
+        const ok = await sendValue(EVENT_HEADER + path, "Event sent ✓");
+        if (ok) {
+            textInput.value = "";
+            notifyDiscord("event", path);
+            // active list will refresh from Unity shortly
+            setTimeout(refreshActive, 900);
+        }
+    }
+
+    async function turnOff(path) {
+        const ok = await sendValue(EVENT_HEADER + "-" + path, "Turned off: " + path);
+        if (ok) {
+            notifyDiscord("event", "-" + path);
+            setTimeout(refreshActive, 900);
+        }
+    }
+
+    async function clearEverything() {
+        textInput.value = "";
+        const ok = await sendValue("", "Cleared ✓");
+        if (ok) {
+            notifyDiscord("clear", "");
+            setTimeout(refreshActive, 900);
+        }
+    }
+
+    async function sendValue(value, successMessage) {
+        setButtonsDisabled(true);
+        statusText.innerText = "Sending...";
+
+        try {
+            const response = await fetch(DB_URL, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(value)
+            });
+
+            if (!response.ok) throw new Error("HTTP " + response.status);
+
+            statusText.innerText = successMessage;
+            return true;
+        } catch (error) {
+            statusText.innerText = "Error ❌";
+            console.error("Could not update the live value:", error);
+            return false;
+        } finally {
+            setButtonsDisabled(false);
+        }
+    }
+
+    function setButtonsDisabled(disabled) {
+        messageButton.disabled = disabled;
+        eventButton.disabled = disabled;
+        clearButton.disabled = disabled;
+    }
+
+    function renderActive(paths) {
+        activeList.innerHTML = "";
+        if (!paths || paths.length === 0) {
+            activeList.innerHTML = '<div class="empty-state">Nothing active yet…</div>';
+            return;
+        }
+
+        for (const path of paths) {
+            const item = document.createElement("div");
+            item.className = "active-item";
+
+            const name = document.createElement("div");
+            name.className = "name";
+            name.textContent = path;
+
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "off-btn";
+            btn.textContent = "Off";
+            btn.addEventListener("click", () => turnOff(path));
+
+            item.appendChild(name);
+            item.appendChild(btn);
+            activeList.appendChild(item);
+        }
+    }
+
+    async function refreshActive() {
+        try {
+            const res = await fetch(ACTIVE_URL + "?t=" + Date.now(), { cache: "no-store" });
+            if (!res.ok) return;
+            const data = await res.json();
+            // Unity may write a string array or null
+            if (Array.isArray(data)) {
+                renderActive(data.filter(x => typeof x === "string" && x.length));
+            } else if (data && typeof data === "object") {
+                // in case Firebase stores as object map
+                renderActive(Object.values(data).filter(x => typeof x === "string" && x.length));
+            } else {
+                renderActive([]);
+            }
+        } catch (e) {
+            // keep previous list on network blip
+        }
+    }
+
+    async function refreshTargets() {
+        try {
+            const res = await fetch(TARGETS_URL + "?t=" + Date.now(), { cache: "no-store" });
+            if (!res.ok) return;
+            const data = await res.json();
+            let names = [];
+            if (Array.isArray(data)) names = data;
+            else if (data && typeof data === "object") names = Object.values(data);
+
+            const current = targetSelect.value;
+            targetSelect.innerHTML = '<option value="">Default (main uiText)</option>';
+            for (const n of names) {
+                if (typeof n !== "string" || !n.length) continue;
+                const opt = document.createElement("option");
+                opt.value = n;
+                opt.textContent = n;
+                targetSelect.appendChild(opt);
+            }
+            if ([...targetSelect.options].some(o => o.value === current)) {
+                targetSelect.value = current;
+            }
+        } catch (e) {
+            // ignore
+        }
+    }
+
+    textInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") sendMessage();
+    });
+
+    // poll Unity state
+    refreshActive();
+    refreshTargets();
+    setInterval(refreshActive, 1500);
+    setInterval(refreshTargets, 5000);
+</script>
+
+</body>
+</html>
