@@ -56,9 +56,7 @@
         background: rgba(30, 20, 40, 0.65);
         backdrop-filter: blur(14px);
         border: 1px solid rgba(168, 85, 247, 0.4);
-        box-shadow:
-            0 0 30px rgba(168, 85, 247, 0.25),
-            0 20px 50px rgba(0, 0, 0, 0.4);
+        box-shadow: 0 0 30px rgba(168, 85, 247, 0.25), 0 20px 50px rgba(0, 0, 0, 0.4);
         text-align: left;
     }
     .box h2 {
@@ -75,7 +73,7 @@
         color: rgba(200, 160, 255, 0.55);
         margin-bottom: 6px;
     }
-    input, select {
+    input {
         width: 100%;
         padding: 14px 16px;
         font-size: 15px;
@@ -90,17 +88,9 @@
         margin-bottom: 12px;
     }
     input::placeholder { color: rgba(200, 160, 255, 0.45); }
-    input:focus, select:focus {
+    input:focus {
         border-color: #c084fc;
-        box-shadow:
-            0 0 12px rgba(168, 85, 247, 0.45),
-            inset 0 0 15px rgba(168, 85, 247, 0.15);
-    }
-    select option { background: #1a1025; color: #fff; }
-    .row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
+        box-shadow: 0 0 12px rgba(168, 85, 247, 0.45), inset 0 0 15px rgba(168, 85, 247, 0.15);
     }
     .buttons {
         display: grid;
@@ -122,11 +112,7 @@
     }
     button:hover { transform: translateY(-3px) scale(1.03); }
     button:active { transform: scale(0.97); }
-    button:disabled {
-        opacity: 0.55;
-        cursor: not-allowed;
-        transform: none;
-    }
+    button:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
     #messageButton {
         background: linear-gradient(135deg, #7c3aed, #a855f7);
         box-shadow: 0 4px 18px rgba(168, 85, 247, 0.4);
@@ -180,9 +166,7 @@
         background: linear-gradient(135deg, #9f1239, #e11d48);
         box-shadow: 0 2px 10px rgba(225, 29, 72, 0.35);
     }
-    .active-item .off-btn:hover {
-        box-shadow: 0 4px 16px rgba(225, 29, 72, 0.55);
-    }
+    .active-item .off-btn:hover { box-shadow: 0 4px 16px rgba(225, 29, 72, 0.55); }
     .empty-state {
         text-align: center;
         font-size: 13px;
@@ -212,7 +196,7 @@
     .logout:hover { transform: translateY(-2px); }
     @media (max-width: 560px) {
         .title { font-size: 1.5rem; letter-spacing: 2px; }
-        .buttons, .row { grid-template-columns: 1fr; }
+        .buttons { grid-template-columns: 1fr; }
         .box { padding: 22px 16px; }
     }
 </style>
@@ -225,16 +209,20 @@
 
 <div class="box">
     <h2>Send</h2>
-    <label for="targetSelect">Text target</label>
-    <select id="targetSelect">
-        <option value="">Default</option>
-    </select>
 
-    <label for="textInput">Message or GameObject path</label>
+    <label for="objectInput">GameObject name (which object gets the text)</label>
+    <input
+        id="objectInput"
+        type="text"
+        placeholder="e.g. ScoreLabel  or  Canvas/Title — leave empty for default"
+        autocomplete="off"
+    >
+
+    <label for="textInput">Message (or event path if using Send Event)</label>
     <input
         id="textInput"
         type="text"
-        placeholder="Type a message or GameObject path..."
+        placeholder="Type the text to show on that object..."
         autocomplete="off"
     >
 
@@ -246,6 +234,10 @@
 
     <p id="status" aria-live="polite"></p>
     <p class="hint">
+        <b>Send Message</b> — put a GameObject name above + a message → Unity finds that object’s text component (TextMesh / TextMeshPro / UI Text) and types on it.<br>
+        Leave the name empty to use the default uiText.<br>
+        <b>Send Event</b> — turns GameObjects on/off (path, a,b, +a, -b).<br>
+        <b>Clear</b> — clears text and turns tracked objects off.
     </p>
 </div>
 
@@ -254,18 +246,17 @@
     <div class="active-list" id="activeList">
         <div class="empty-state">Nothing active yet…</div>
     </div>
-    <p class="hint">Click Off to send</p>
+    <p class="hint">Unity reports what's on. Click Off to turn that object off.</p>
 </div>
 
 <script>
     const DB_URL = "https://my-text-1c7d9-default-rtdb.firebaseio.com/text.json";
     const ACTIVE_URL = "https://my-text-1c7d9-default-rtdb.firebaseio.com/active.json";
-    const TARGETS_URL = "https://my-text-1c7d9-default-rtdb.firebaseio.com/targets.json";
     const EVENT_HEADER = "EVENT:";
     const TEXT_HEADER = "TEXT:";
 
+    const objectInput = document.getElementById("objectInput");
     const textInput = document.getElementById("textInput");
-    const targetSelect = document.getElementById("targetSelect");
     const statusText = document.getElementById("status");
     const messageButton = document.getElementById("messageButton");
     const eventButton = document.getElementById("eventButton");
@@ -277,11 +268,8 @@
     clearButton.addEventListener("click", clearEverything);
 
     document.getElementById("logoutButton").addEventListener("click", async () => {
-        try {
-            await fetch("/api/logout", { method: "POST" });
-        } finally {
-            window.location.href = "/login.html";
-        }
+        try { await fetch("/api/logout", { method: "POST" }); }
+        finally { window.location.href = "/login.html"; }
     });
 
     async function notifyDiscord(type, value) {
@@ -291,9 +279,7 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ type, value }),
             });
-        } catch (e) {
-            console.warn("discord notify failed", e);
-        }
+        } catch (e) { console.warn("discord notify failed", e); }
     }
 
     async function sendMessage() {
@@ -303,12 +289,15 @@
             return;
         }
 
-        const target = targetSelect.value.trim();
-        const payload = target
-            ? TEXT_HEADER + target + "|" + message
+        const objectName = objectInput.value.trim();
+        const payload = objectName
+            ? TEXT_HEADER + objectName + "|" + message
             : message;
 
-        const ok = await sendValue(payload, target ? "Text sent to " + target : "Message sent!");
+        const ok = await sendValue(
+            payload,
+            objectName ? "Text → " + objectName : "Message sent!"
+        );
         if (ok) {
             textInput.value = "";
             notifyDiscord("message", payload);
@@ -326,7 +315,6 @@
         if (ok) {
             textInput.value = "";
             notifyDiscord("event", path);
-            // active list will refresh from Unity shortly
             setTimeout(refreshActive, 900);
         }
     }
@@ -351,21 +339,18 @@
     async function sendValue(value, successMessage) {
         setButtonsDisabled(true);
         statusText.innerText = "Sending...";
-
         try {
             const response = await fetch(DB_URL, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(value)
             });
-
             if (!response.ok) throw new Error("HTTP " + response.status);
-
             statusText.innerText = successMessage;
             return true;
         } catch (error) {
             statusText.innerText = "Error ❌";
-            console.error("Could not update the live value:", error);
+            console.error(error);
             return false;
         } finally {
             setButtonsDisabled(false);
@@ -384,21 +369,17 @@
             activeList.innerHTML = '<div class="empty-state">Nothing active yet…</div>';
             return;
         }
-
         for (const path of paths) {
             const item = document.createElement("div");
             item.className = "active-item";
-
             const name = document.createElement("div");
             name.className = "name";
             name.textContent = path;
-
             const btn = document.createElement("button");
             btn.type = "button";
             btn.className = "off-btn";
             btn.textContent = "Off";
             btn.addEventListener("click", () => turnOff(path));
-
             item.appendChild(name);
             item.appendChild(btn);
             activeList.appendChild(item);
@@ -410,56 +391,22 @@
             const res = await fetch(ACTIVE_URL + "?t=" + Date.now(), { cache: "no-store" });
             if (!res.ok) return;
             const data = await res.json();
-            // Unity may write a string array or null
             if (Array.isArray(data)) {
                 renderActive(data.filter(x => typeof x === "string" && x.length));
             } else if (data && typeof data === "object") {
-                // in case Firebase stores as object map
                 renderActive(Object.values(data).filter(x => typeof x === "string" && x.length));
             } else {
                 renderActive([]);
             }
-        } catch (e) {
-            // keep previous list on network blip
-        }
-    }
-
-    async function refreshTargets() {
-        try {
-            const res = await fetch(TARGETS_URL + "?t=" + Date.now(), { cache: "no-store" });
-            if (!res.ok) return;
-            const data = await res.json();
-            let names = [];
-            if (Array.isArray(data)) names = data;
-            else if (data && typeof data === "object") names = Object.values(data);
-
-            const current = targetSelect.value;
-            targetSelect.innerHTML = '<option value="">Default (main uiText)</option>';
-            for (const n of names) {
-                if (typeof n !== "string" || !n.length) continue;
-                const opt = document.createElement("option");
-                opt.value = n;
-                opt.textContent = n;
-                targetSelect.appendChild(opt);
-            }
-            if ([...targetSelect.options].some(o => o.value === current)) {
-                targetSelect.value = current;
-            }
-        } catch (e) {
-            // ignore
-        }
+        } catch (e) {}
     }
 
     textInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter") sendMessage();
     });
 
-    // poll Unity state
     refreshActive();
-    refreshTargets();
     setInterval(refreshActive, 1500);
-    setInterval(refreshTargets, 5000);
 </script>
-
 </body>
 </html>
